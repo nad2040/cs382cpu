@@ -1,0 +1,45 @@
+
+WHITESPACE = _{ " " }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" }
+
+VALID_STRING_CHAR = @{ "\\n" | "\\t" | "\\0" | "\\\"" | "\\\'" | (!("\"" | "\0" | "\t" | "\n") ~ ' '..'~') }
+VALID_CHAR_CHAR = @{ "\\n" | "\\t" | "\\0" | "\\\"" | "\\\'" | (!("\'" | "\0" | "\t" | "\n") ~ ' '..'~') }
+HEX_LITERAL = @{ "0x" ~ ASCII_HEX_DIGIT+ }
+BIN_LITERAL = @{ "0b" ~ ASCII_BIN_DIGIT+ }
+DEC_LITERAL = @{ ASCII_DIGIT+ }
+CHAR_LITERAL = @{ "'" ~ VALID_CHAR_CHAR ~ "'"}
+STRING_LITERAL = @{ "\"" ~ VALID_STRING_CHAR* ~ "\"" }
+LITERAL = { HEX_LITERAL | BIN_LITERAL | DEC_LITERAL | CHAR_LITERAL | STRING_LITERAL }
+IMM = { HEX_LITERAL | BIN_LITERAL | DEC_LITERAL | CHAR_LITERAL }
+
+REG = ${
+    ("R" ~ (DEC_LITERAL)) |
+    "PC" | "SP"
+}
+
+ARITH_INSTR = { "ADD" | "SUB" | "MUL" | "DIV" }
+LOGIC_INSTR = { "AND" | "ORR" | "NEG" }
+CMP_INSTR = { "CMP" }
+BRANCH_INSTR = { "B" | "BL" }
+MEM_INSTR = @{ ("LD" | "ST") ~ ("1" | "2" | "4" | "8") ~ "S"? } // load/store n bytes in powers of 2.
+
+LABEL = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")+ ~ ":" }
+
+DATA_DIR = { ".data" }
+TEXT_DIR = { ".text" }
+DATATYPE_DIR = @{ ".string" | ".char" | ".1b" | ".2b" | ".4b" | ".8b" } // 1 byte, 2 byte, 4 byte, 8 byte literal
+
+MNEMONIC = {
+    (ARITH_INSTR ~ REG ~ REG ~ (REG | IMM)) |
+    (LOGIC_INSTR ~ REG ~ REG ~ REG) |
+    (MEM_INSTR ~ REG ~ REG ~ (REG | IMM)) |
+    (CMP_INSTR ~ REG ~ (REG | IMM)) |
+    (BRANCH_INSTR ~ LABEL)
+}
+TEXT_LINE = { LABEL? ~ MNEMONIC? ~ NEWLINE }
+
+DATA_LINE = { LABEL? ~ (DATATYPE_DIR ~ LITERAL ~ ("," ~ LITERAL)*)? ~ NEWLINE }
+
+SECTION = { (DATA_DIR ~ NEWLINE ~ (!(TEXT_DIR | DATA_DIR) ~ DATA_LINE)*) | (TEXT_DIR ~ NEWLINE ~ (!(TEXT_DIR | DATA_DIR) ~ TEXT_LINE)*) }
+
+PROGRAM = { SOI ~ SECTION* ~ EOI }
