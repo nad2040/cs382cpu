@@ -1,14 +1,8 @@
-extern crate pest;
-#[macro_use]
-extern crate pest_derive;
-
-#[derive(Parser)]
-#[grammar = "grammar.pest"]
-struct AsmParser;
-
-use pest::Parser;
+mod lexer;
+mod token;
 
 use std::fs;
+use std::process;
 
 fn main() {
     let program: String = match fs::read_to_string("program.asm") {
@@ -17,14 +11,21 @@ fn main() {
             panic!("{}", e)
         }
     };
-    let tokens = match AsmParser::parse(Rule::PROGRAM, program.as_str()) {
-        Ok(tokens) => tokens,
-        Err(e) => {
-            panic!("{}", e)
-        }
+    let mut prog = match AsmParser::parse(Rule::PROGRAM, program.as_str()) {
+        Ok(prog) => prog,
+        Err(e) => match e.variant {
+            ErrorVariant::ParsingError {
+                positives,
+                negatives,
+            } => {
+                println!("parsing error {:?} {:?}", positives, negatives);
+                process::exit(1);
+            }
+            ErrorVariant::CustomError { message } => {
+                println!("custom error {}", message);
+                process::exit(1);
+            }
+        },
     };
-    println!("{}", tokens);
-    for t in tokens.flatten().tokens() {
-        println!("{:?}",t);
-    }
+    let t = prog.next().unwrap();
 }

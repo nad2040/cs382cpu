@@ -13,15 +13,18 @@ LITERAL = { HEX_LITERAL | BIN_LITERAL | DEC_LITERAL | CHAR_LITERAL | STRING_LITE
 IMM = { HEX_LITERAL | BIN_LITERAL | DEC_LITERAL | CHAR_LITERAL }
 
 REG = ${
-    ("R" ~ (DEC_LITERAL)) |
+    ("R" ~ ( "10" | "11" | "12" | "13" | "14" | "15" | '0'..'9' )) |
     "PC" | "SP"
 }
 
-ARITH_INSTR = { "ADD" | "SUB" | "MUL" | "DIV" }
+ARITH_INSTR = { "ADD" | "SUB" | "MUL" | "DIV" | "ASR" | "MOD" | "LSL" }
 LOGIC_INSTR = { "AND" | "ORR" | "NEG" }
 CMP_INSTR = { "CMP" }
 BRANCH_INSTR = { "B" | "BL" }
 MEM_INSTR = @{ ("LD" | "ST") ~ ("1" | "2" | "4" | "8") ~ "S"? } // load/store n bytes in powers of 2.
+
+// idea LD REG (IMM|LABEL|REG)
+// then use bracket for specifying address mode
 
 LABEL = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")+ ~ ":" }
 
@@ -33,13 +36,14 @@ MNEMONIC = {
     (ARITH_INSTR ~ REG ~ REG ~ (REG | IMM)) |
     (LOGIC_INSTR ~ REG ~ REG ~ REG) |
     (MEM_INSTR ~ REG ~ REG ~ (REG | IMM)) |
+    (MEM_INSTR ~ REG ~ (REG | IMM | LABEL))
     (CMP_INSTR ~ REG ~ (REG | IMM)) |
     (BRANCH_INSTR ~ LABEL)
 }
-TEXT_LINE = { LABEL? ~ MNEMONIC? ~ NEWLINE }
 
+TEXT_LINE = { LABEL? ~ MNEMONIC? ~ NEWLINE }
 DATA_LINE = { LABEL? ~ (DATATYPE_DIR ~ LITERAL ~ ("," ~ LITERAL)*)? ~ NEWLINE }
 
 SECTION = { (DATA_DIR ~ NEWLINE ~ (!(TEXT_DIR | DATA_DIR) ~ DATA_LINE)*) | (TEXT_DIR ~ NEWLINE ~ (!(TEXT_DIR | DATA_DIR) ~ TEXT_LINE)*) }
 
-PROGRAM = { SOI ~ SECTION* ~ EOI }
+PROGRAM = _{ SOI ~ SECTION* ~ EOI }
