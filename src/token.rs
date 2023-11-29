@@ -27,6 +27,12 @@ pub enum DataTypeDirective {
 }
 
 #[derive(Debug, Clone)]
+pub enum CommentType {
+    Line,
+    MultiLine,
+}
+
+#[derive(Debug, Clone)]
 pub enum TokenValue {
     Add,
     Sub,
@@ -43,13 +49,14 @@ pub enum TokenValue {
     Ld(u8, bool),
     St(u8),
 
-    R(u8),
-
+    Register(u8),
     Imm(u64),
     Char(char),
     String(String),
 
     Label(String),
+    LabelDef(String),
+
     SectionDirective(SectionDirective),
     DataTypeDirective(DataTypeDirective),
 
@@ -57,6 +64,7 @@ pub enum TokenValue {
     Colon,
 
     Whitespace,
+    Newline,
 
     Eof,
 }

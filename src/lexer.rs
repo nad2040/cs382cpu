@@ -1,4 +1,4 @@
-use crate::token::{DataTypeDirective, Loc, SectionDirective, Token, TokenValue};
+use crate::token::{CommentType, DataTypeDirective, Loc, SectionDirective, Token, TokenValue};
 
 #[derive(Debug, Clone)]
 pub struct Lexer {
@@ -30,7 +30,7 @@ impl Lexer {
         }
     }
 
-    fn add_token(&self, token: Token) {
+    fn add_token(&mut self, token: Token) {
         self.tokens.push(token)
     }
 
@@ -38,6 +38,13 @@ impl Lexer {
         self.source.as_bytes()[self.curr_idx] as char
     }
     fn peek_n(&self, n: usize) -> &str {
+        if self.is_at_end() {
+            self.error(
+                "Error: end-of-file reached when reading token".to_string(),
+                self.curr_loc.line,
+                self.curr_loc.col,
+            );
+        }
         std::str::from_utf8(
             self.source.as_bytes()
                 [self.curr_idx..std::cmp::min(self.curr_idx + n, self.source.len())]
@@ -46,7 +53,7 @@ impl Lexer {
         .unwrap()
     }
 
-    fn match_str(&self, string: &str) -> bool {
+    fn match_str(&mut self, string: &str) -> bool {
         if string == self.peek_n(string.len()) {
             self.increment_position(string.len());
             true
@@ -67,21 +74,49 @@ impl Lexer {
             .push(Token::new(self.start_loc, TokenValue::Eof));
     }
 
-    fn parse_token(&self) {
-        let c = self.peek();
+    fn parse_token(&mut self) {
+        let mut c = self.peek();
         match c {
-            ' ' => self.parse_whitespace(),
-            '.' => self.parse_directive(),
+            ':' => {
+                self.increment_position(1);
+                self.add_token(Token::new(self.start_loc, TokenValue::Colon));
+            }
             ',' => {
                 self.increment_position(1);
                 self.add_token(Token::new(self.start_loc, TokenValue::Comma));
             }
+            c if c.is_whitespace() && c != '\n' => self.parse_whitespace(),
+            '\n' => {
+                self.increment_position(1);
+                self.add_token(Token::new(self.start_loc, TokenValue::Newline));
+            }
+            '/' => {
+                self.increment_position(1);
+                c = self.peek();
+                match c {
+                    '/' => self.parse_comment(CommentType::Line),
+                    '*' => self.parse_comment(CommentType::MultiLine),
+                    _ => self.error(
+                        "Error: unknown comment specifier".to_string(),
+                        self.curr_loc.line,
+                        self.curr_loc.col,
+                    ),
+                }
+            }
+            c if c.is_ascii_alphabetic() || c == '_' => self.parse_word(),
+            '0'..='9' => self.parse_immediate(),
+            '.' => self.parse_directive(),
             '\'' => self.parse_char(),
             '\"' => self.parse_string(),
+            _ => self.error(
+                "Error: unknown token".to_string(),
+                self.curr_loc.line,
+                self.curr_loc.col,
+            ),
         }
     }
 
-    fn parse_whitespace(&self) {
+    fn parse_whitespace(&mut self) {
         let mut c = self.peek();
         while c.is_whitespace() && c != '\n' {
             self.increment_position(1);
@@ -90,7 +125,133 @@ impl Lexer {
         self.add_token(Token::new(self.start_loc, TokenValue::Whitespace));
     }
 
-    fn parse_directive(&self) {
+    fn parse_comment(&mut self, comment_type: CommentType) {
+        match comment_type {
+            CommentType::Line => {
+                self.increment_position(1);
+                let mut c = self.peek();
+                while c != '\n' {
+                    self.increment_position(1);
+                    c = self.peek();
+                }
+            }
+            CommentType::MultiLine => {
+                self.increment_position(1);
+                let mut end_comment = self.peek_n(2);
+                while end_comment != "*/" {
+                    self.increment_position(1);
+                    end_comment = self.peek_n(2);
+                }
+                self.increment_position(2);
+            }
+        }
+    }
+
+    fn parse_word(&mut self) {
+        let mut str = String::new();
+        let mut c = self.peek();
+        while c.is_ascii_alphanumeric() || c == '_' || c == '.' {
+            str.push(c);
+            self.increment_position(1);
+            c = self.peek();
+        }
+
+        match str.to_lowercase().as_str() {
+            "add" => self.add_token(Token::new(self.start_loc, TokenValue::Add)),
+            "sub" => self.add_token(Token::new(self.start_loc, TokenValue::Sub)),
+            "mul" => self.add_token(Token::new(self.start_loc, TokenValue::Mul)),
+            "div" => self.add_token(Token::new(self.start_loc, TokenValue::Div)),
+            "mod" => self.add_token(Token::new(self.start_loc, TokenValue::Mod)),
+            "asr" => self.add_token(Token::new(self.start_loc, TokenValue::Asr)),
+            "lsl" => self.add_token(Token::new(self.start_loc, TokenValue::Lsl)),
+            "and" => self.add_token(Token::new(self.start_loc, TokenValue::And)),
+            "orr" => self.add_token(Token::new(self.start_loc, TokenValue::Orr)),
+            "neg" => self.add_token(Token::new(self.start_loc, TokenValue::Neg)),
+            "ld1" | "ld1s" => self.add_token(Token::new(
+                self.start_loc,
+                TokenValue::Ld(1, str.len() == 4),
+            )),
+            "ld2" | "ld2s" => self.add_token(Token::new(
+                self.start_loc,
+                TokenValue::Ld(2, str.len() == 4),
+            )),
+            "ld4" | "ld4s" => self.add_token(Token::new(
+                self.start_loc,
+                TokenValue::Ld(4, str.len() == 4),
+            )),
+            "ld" | "lds" => self.add_token(Token::new(
+                self.start_loc,
+                TokenValue::Ld(8, str.len() == 3),
+            )),
+            "st1" | "st2" | "st4" | "st" => self.add_token(Token::new(
+                self.start_loc,
+                TokenValue::St(if str.len() == 2 {
+                    8
+                } else {
+                    str.chars().last().unwrap().to_digit(10).unwrap() as u8
+                }),
+            )),
+            "r0" | "r1" | "r2" | "r3" | "r4" | "r5" | "r6" | "r7" => self.add_token(Token::new(
+                self.start_loc,
+                TokenValue::Register(str.chars().last().unwrap().to_digit(10).unwrap() as u8),
+            )),
+            _ => {
+                if c == ':' {
+                    self.increment_position(1);
+                    self.add_token(Token::new(self.start_loc, TokenValue::LabelDef(str)))
+                } else if c.is_whitespace() {
+                    self.add_token(Token::new(self.start_loc, TokenValue::Label(str)))
+                }
+            }
+        }
+    }
+
+    fn parse_immediate(&mut self) {
+        let header = self.peek_n(2);
+        let mut num = String::new();
+        match header {
+            "0x" => {
+                self.increment_position(2);
+                let mut c = self.peek();
+                while c.is_digit(16) {
+                    num.push(c);
+                    self.increment_position(1);
+                    c = self.peek();
+                }
+                self.add_token(Token::new(
+                    self.start_loc,
+                    TokenValue::Imm(u64::from_str_radix(num.as_str(), 16).unwrap()),
+                ))
+            }
+            "0b" => {
+                self.increment_position(2);
+                let mut c = self.peek();
+                while c.is_digit(2) {
+                    num.push(c);
+                    self.increment_position(1);
+                    c = self.peek();
+                }
+                self.add_token(Token::new(
+                    self.start_loc,
+                    TokenValue::Imm(u64::from_str_radix(num.as_str(), 2).unwrap()),
+                ))
+            }
+            _ => {
+                let mut c = self.peek();
+                while c.is_digit(10) {
+                    num.push(c);
+                    self.increment_position(1);
+                    c = self.peek();
+                }
+                self.add_token(Token::new(
+                    self.start_loc,
+                    TokenValue::Imm(u64::from_str_radix(num.as_str(), 10).unwrap()),
+                ))
+            }
+        }
+    }
+
+    fn parse_directive(&mut self) {
         self.increment_position(1);
         if self.match_str("text") {
             self.add_token(Token::new(
@@ -141,7 +302,7 @@ impl Lexer {
         }
     }
 
-    fn parse_char(&self) {
+    fn parse_char(&mut self) {
         self.increment_position(1);
         let mut c = self.peek();
         match c {
@@ -176,7 +337,7 @@ impl Lexer {
         }
         self.increment_position(1);
     }
-    fn parse_string(&self) {
+    fn parse_string(&mut self) {
         self.increment_position(1);
         let mut str = String::new();
         while self.peek() != '"' && !self.is_at_end() {
@@ -201,8 +362,10 @@ impl Lexer {
                         self.curr_loc.col,
                     );
                 }
+                self.increment_position(2);
             } else {
                 str.push(c);
+                self.increment_position(1);
             }
         }
 
@@ -227,7 +390,7 @@ impl Lexer {
     }
 
     fn increment_position(&mut self, n: usize) {
-        for i in 0..n {
+        for _ in 0..n {
             if self.source.chars().nth(self.curr_idx).unwrap() == '\n' {
                 self.curr_idx += 1;
                 self.curr_loc.line += 1;

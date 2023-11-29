@@ -1,6 +1,7 @@
 mod lexer;
 mod token;
 
+use lexer::Lexer;
 use std::fs;
 use std::process;
 
@@ -11,21 +12,23 @@ fn main() {
             panic!("{}", e)
         }
     };
-    let mut prog = match AsmParser::parse(Rule::PROGRAM, program.as_str()) {
-        Ok(prog) => prog,
-        Err(e) => match e.variant {
-            ErrorVariant::ParsingError {
-                positives,
-                negatives,
-            } => {
-                println!("parsing error {:?} {:?}", positives, negatives);
-                process::exit(1);
-            }
-            ErrorVariant::CustomError { message } => {
-                println!("custom error {}", message);
-                process::exit(1);
-            }
-        },
-    };
-    let t = prog.next().unwrap();
+    let lexer = Lexer::new(program);
+    lexer.emit();
+    // let mut prog = match AsmParser::parse(Rule::PROGRAM, program.as_str()) {
+    //     Ok(prog) => prog,
+    //     Err(e) => match e.variant {
+    //         ErrorVariant::ParsingError {
+    //             positives,
+    //             negatives,
+    //         } => {
+    //             println!("parsing error {:?} {:?}", positives, negatives);
+    //             process::exit(1);
+    //         }
+    //         ErrorVariant::CustomError { message } => {
+    //             println!("custom error {}", message);
+    //             process::exit(1);
+    //         }
+    //     },
+    // };
+    // let t = prog.next().unwrap();
 }
