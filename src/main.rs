@@ -1,19 +1,24 @@
 mod lexer;
+mod parser;
 mod token;
 
 use lexer::Lexer;
+use parser::Parser;
 use std::fs;
-use std::process;
 
 fn main() {
+    env_logger::init();
     let program: String = match fs::read_to_string("program.asm") {
         Ok(s) => s,
         Err(e) => {
-            panic!("{}", e)
+            println!("{}", e);
+            std::process::exit(1);
         }
     };
     let lexer = Lexer::new(program);
     lexer.emit();
+    let parser = Parser::new(lexer.tokens);
+
     // let mut prog = match AsmParser::parse(Rule::PROGRAM, program.as_str()) {
     //     Ok(prog) => prog,
     //     Err(e) => match e.variant {

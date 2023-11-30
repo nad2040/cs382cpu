@@ -1,22 +1,22 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Hash, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Loc {
     pub line: u32,
     pub col: u32,
 }
 
-impl Loc {
-    pub fn new(line: u32, col: u32) -> Self {
-        Self { line, col }
-    }
-}
+// impl Loc {
+//     pub fn new(line: u32, col: u32) -> Self {
+//         Self { line, col }
+//     }
+// }
 
-#[derive(Debug, Clone)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone)]
 pub enum SectionDirective {
     Data,
     Text,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone)]
 pub enum DataTypeDirective {
     String,
     Char,
@@ -32,7 +32,7 @@ pub enum CommentType {
     MultiLine,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone)]
 pub enum TokenValue {
     Add,
     Sub,
@@ -46,8 +46,12 @@ pub enum TokenValue {
     Orr,
     Neg,
 
+    Swap,
+
     Ld(u8, bool),
     St(u8),
+
+    Halt,
 
     Register(u8),
     Imm(u64),
@@ -62,6 +66,8 @@ pub enum TokenValue {
 
     Comma,
     Colon,
+    LBracket,
+    RBracket,
 
     Whitespace,
     Newline,
@@ -69,10 +75,10 @@ pub enum TokenValue {
     Eof,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Hash, PartialEq, Eq, Debug, Clone)]
 pub struct Token {
-    loc: Loc,
-    value: TokenValue,
+    pub loc: Loc,
+    pub value: TokenValue,
 }
 
 impl Token {

@@ -1,9 +1,10 @@
 use crate::token::{CommentType, DataTypeDirective, Loc, SectionDirective, Token, TokenValue};
+use log::error;
 
 #[derive(Debug, Clone)]
 pub struct Lexer {
     source: String,
-    tokens: Vec<Token>,
+    pub tokens: Vec<Token>,
     start_idx: usize,
     start_loc: Loc,
     curr_idx: usize,
@@ -40,7 +41,7 @@ impl Lexer {
     fn peek_n(&self, n: usize) -> &str {
         if self.is_at_end() {
             self.error(
-                "Error: end-of-file reached when reading token".to_string(),
+                "End-of-file reached when reading token".to_string(),
                 self.curr_loc.line,
                 self.curr_loc.col,
             );
@@ -85,6 +86,14 @@ impl Lexer {
                 self.increment_position(1);
                 self.add_token(Token::new(self.start_loc, TokenValue::Comma));
             }
+            '[' => {
+                self.increment_position(1);
+                self.add_token(Token::new(self.start_loc, TokenValue::LBracket));
+            }
+            ']' => {
+                self.increment_position(1);
+                self.add_token(Token::new(self.start_loc, TokenValue::RBracket));
+            }
             c if c.is_whitespace() && c != '\n' => self.parse_whitespace(),
             '\n' => {
                 self.increment_position(1);
@@ -97,7 +106,7 @@ impl Lexer {
                     '/' => self.parse_comment(CommentType::Line),
                     '*' => self.parse_comment(CommentType::MultiLine),
                     _ => self.error(
-                        "Error: unknown comment specifier".to_string(),
+                        "Unknown comment specifier".to_string(),
                         self.curr_loc.line,
                         self.curr_loc.col,
                     ),
@@ -109,7 +118,7 @@ impl Lexer {
             '\'' => self.parse_char(),
             '\"' => self.parse_string(),
             _ => self.error(
-                "Error: unknown token".to_string(),
+                "Unknown token".to_string(),
                 self.curr_loc.line,
                 self.curr_loc.col,
             ),
@@ -167,6 +176,8 @@ impl Lexer {
             "and" => self.add_token(Token::new(self.start_loc, TokenValue::And)),
             "orr" => self.add_token(Token::new(self.start_loc, TokenValue::Orr)),
             "neg" => self.add_token(Token::new(self.start_loc, TokenValue::Neg)),
+            "swap" => self.add_token(Token::new(self.start_loc, TokenValue::Swap)),
+            "halt" => self.add_token(Token::new(self.start_loc, TokenValue::Halt)),
             "ld1" | "ld1s" => self.add_token(Token::new(
                 self.start_loc,
                 TokenValue::Ld(1, str.len() == 4),
@@ -191,6 +202,7 @@ impl Lexer {
                     str.chars().last().unwrap().to_digit(10).unwrap() as u8
                 }),
             )),
+            "rzr" => self.add_token(Token::new(self.start_loc, TokenValue::Register(7))),
             "r0" | "r1" | "r2" | "r3" | "r4" | "r5" | "r6" | "r7" => self.add_token(Token::new(
                 self.start_loc,
                 TokenValue::Register(str.chars().last().unwrap().to_digit(10).unwrap() as u8),
@@ -207,6 +219,7 @@ impl Lexer {
     }
 
     fn parse_immediate(&mut self) {
+        use std::num::IntErrorKind;
         let header = self.peek_n(2);
         let mut num = String::new();
         match header {
@@ -218,10 +231,24 @@ impl Lexer {
                     self.increment_position(1);
                     c = self.peek();
                 }
-                self.add_token(Token::new(
-                    self.start_loc,
-                    TokenValue::Imm(u64::from_str_radix(num.as_str(), 16).unwrap()),
-                ))
+                match u64::from_str_radix(num.as_str(), 16) {
+                    Ok(num) => self.add_token(Token::new(self.start_loc, TokenValue::Imm(num))),
+                    Err(e) => match e.kind() {
+                        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => self.error(
+                            "Hex literal exceeds 64 bits".to_string(),
+                            self.start_loc.line,
+                            self.start_loc.col,
+                        ),
+                        IntErrorKind::Empty => {
+                            self.error(
+                                "Incomplete hex literal".to_string(),
+                                self.curr_loc.line,
+                                self.curr_loc.col,
+                            );
+                        }
+                        _ => (),
+                    },
+                }
             }
             "0b" => {
                 self.increment_position(2);
@@ -231,10 +258,24 @@ impl Lexer {
                     self.increment_position(1);
                     c = self.peek();
                 }
-                self.add_token(Token::new(
-                    self.start_loc,
-                    TokenValue::Imm(u64::from_str_radix(num.as_str(), 2).unwrap()),
-                ))
+                match u64::from_str_radix(num.as_str(), 2) {
+                    Ok(num) => self.add_token(Token::new(self.start_loc, TokenValue::Imm(num))),
+                    Err(e) => match e.kind() {
+                        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => self.error(
+                            "Binary literal exceeds 64 bits".to_string(),
+                            self.start_loc.line,
+                            self.start_loc.col,
+                        ),
+                        IntErrorKind::Empty => {
+                            self.error(
+                                "Incomplete binary literal".to_string(),
+                                self.curr_loc.line,
+                                self.curr_loc.col,
+                            );
+                        }
+                        _ => (),
+                    },
+                }
             }
             _ => {
                 let mut c = self.peek();
@@ -243,10 +284,24 @@ impl Lexer {
                     self.increment_position(1);
                     c = self.peek();
                 }
-                self.add_token(Token::new(
-                    self.start_loc,
-                    TokenValue::Imm(u64::from_str_radix(num.as_str(), 10).unwrap()),
-                ))
+                match u64::from_str_radix(num.as_str(), 10) {
+                    Ok(num) => self.add_token(Token::new(self.start_loc, TokenValue::Imm(num))),
+                    Err(e) => match e.kind() {
+                        IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => self.error(
+                            "Decimal literal exceeds 64 bits".to_string(),
+                            self.start_loc.line,
+                            self.start_loc.col,
+                        ),
+                        IntErrorKind::Empty => {
+                            self.error(
+                                "Incomplete decimal literal".to_string(),
+                                self.curr_loc.line,
+                                self.curr_loc.col,
+                            );
+                        }
+                        _ => (),
+                    },
+                }
             }
         }
     }
@@ -295,7 +350,7 @@ impl Lexer {
             ))
         } else {
             self.error(
-                "Error: unknown directive".to_string(),
+                "Unknown directive".to_string(),
                 self.start_loc.line,
                 self.start_loc.col,
             );
@@ -308,7 +363,7 @@ impl Lexer {
         match c {
             '\n' | '\r' | '\t' | '\0' | '\'' => {
                 self.error(
-                    "Error: Invalid character literal".to_string(),
+                    "Invalid character literal".to_string(),
                     self.curr_loc.line,
                     self.curr_loc.col,
                 );
@@ -323,7 +378,7 @@ impl Lexer {
                     '0' => self.add_token(Token::new(self.start_loc, TokenValue::Char('\0'))),
                     '\'' => self.add_token(Token::new(self.start_loc, TokenValue::Char('\''))),
                     _ => self.error(
-                        "Error: invalid escape sequence".to_string(),
+                        "Invalid escape sequence".to_string(),
                         self.curr_loc.line,
                         self.curr_loc.col,
                     ),
@@ -357,7 +412,7 @@ impl Lexer {
                     str.push('"');
                 } else {
                     self.error(
-                        "Error: Invalid escape sequence".to_string(),
+                        "Invalid escape sequence".to_string(),
                         self.curr_loc.line,
                         self.curr_loc.col,
                     );
@@ -371,7 +426,7 @@ impl Lexer {
 
         if self.is_at_end() {
             self.error(
-                "Error: Unterminated string".to_string(),
+                "Unterminated string".to_string(),
                 self.curr_loc.line,
                 self.curr_loc.col,
             );
@@ -382,7 +437,8 @@ impl Lexer {
     }
 
     fn error(&self, message: String, line: u32, col: u32) {
-        panic!("{} at {}:{}", message, line, col);
+        error!("{} at {}:{}", message, line, col);
+        std::process::exit(1);
     }
 
     fn is_at_end(&self) -> bool {
