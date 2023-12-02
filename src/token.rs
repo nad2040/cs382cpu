@@ -48,8 +48,8 @@ pub enum TokenValue {
 
     Swap,
 
-    Ld(u8, bool),
-    St(u8),
+    Ld(u8, bool), // num bytes, sign-extension
+    St(u8),       // num bytes
 
     Halt,
 
