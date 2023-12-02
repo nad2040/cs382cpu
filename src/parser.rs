@@ -169,6 +169,7 @@ impl Parser {
                 TokenValue::Halt => {
                     self.instructions.push(Instruction::Halt);
                     self.text_section_offset += 4;
+                    self.increment_position(1);
                 }
                 _ => self.errtok(format!("Unexpected token {:?}", t.value), t),
             }
