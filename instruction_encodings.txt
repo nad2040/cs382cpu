@@ -1,0 +1,69 @@
+T: type (involves alu: 1, mem/other: 0)
+N: number (0000-1111)
+A: alu src (immediate: 1, register: 0)
+W: use 2nd write port
+TNNNNAW
+0000000: HALT
+0000010: UNDEFINED (do we also want to set this to HALT)
+0000100: LD1 reg, [reg, reg]
+0000110: LD1 reg, [reg, imm]
+0001000: LD2 reg, [reg, reg]
+0001010: LD2 reg, [reg, imm]
+0001100: LD4 reg, [reg, reg]
+0001110: LD4 reg, [reg, imm]
+0010000: LD[S] reg, [reg, reg]
+0010010: LD[S] reg, [reg, imm]
+0010100: LD1S reg, [reg, reg]
+0010110: LD1S reg, [reg, imm]
+0011000: LD2S reg, [reg, reg]
+0011010: LD2S reg, [reg, imm]
+0011100: LD4S reg, [reg, reg]
+0011110: LD4S reg, [reg, imm]
+0100000: ST1 reg, [reg, reg]
+0100010: ST1 reg, [reg, imm]
+0100100: ST2 reg, [reg, reg]
+0100110: ST2 reg, [reg, imm]
+0101000: ST4 reg, [reg, reg]
+0101010: ST4 reg, [reg, imm]
+0101100: ST reg, [reg, reg]
+0101110: ST reg, [reg, imm]
+0110000: UNDEFINED
+0110010: UNDEFINED
+0110100: UNDEFINED
+0110110: UNDEFINED
+0111000: UNDEFINED
+0111010: UNDEFINED
+0111100: UNDEFINED
+0111110: UNDEFINED
+1000000: ADD reg, reg, reg
+1000010: ADD reg, reg, imm
+1000100: SUB reg, reg, reg
+1000110: SUB reg, reg, imm
+1001000: MUL reg, reg, reg
+1001010: MUL reg, reg, imm
+1001100: DIV reg, reg, reg
+1001110: DIV reg, reg, imm
+1010000: MOD reg, reg, reg
+1010010: MOD reg, reg, imm
+1010100: ASR reg, reg, reg
+1010110: ASR reg, reg, imm
+1011000: LSL reg, reg, reg
+1011010: LSL reg, reg, imm
+1011100: AND reg, reg, reg
+1011110: AND reg, reg, imm
+1100000: ORR reg, reg, reg
+1100010: ORR reg, reg, imm
+1100100: NEG reg, reg
+1100110: NEG reg, imm
+1101000: LD reg, reg (acts as MOV)
+1101010: LD reg, imm64|label (acts as MOV/ADR. imm is stored in the constant pool. the address of the constant or label is then converted to pc-relative-offset)
+1101101: SWAP reg, reg
+1101110: UNDEFINED
+1110000: UNDEFINED
+1110010: UNDEFINED
+1110100: UNDEFINED
+1110110: UNDEFINED
+1111000: UNDEFINED
+1111010: UNDEFINED
+1111100: UNDEFINED
+1111110: UNDEFINED
