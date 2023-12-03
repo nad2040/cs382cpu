@@ -210,7 +210,7 @@ impl Parser {
                 ));
             }
             (TokenValue::Label(label), TokenValue::CBNZ) => {
-                self.instructions.push(Instruction::B(
+                self.instructions.push(Instruction::CBNZ(
                     RegImmAddr::Unresolved(label, self.text_section_offset), // current PC. calculate
                                                                              // relative offset later
                 ));
