@@ -50,9 +50,9 @@ pub struct Parser {
     constant_pool_offset: usize,
     data_section_offset: usize,
     text_section_offset: usize,
-    instructions: Vec<Instruction>,
-    data_section: Vec<u8>,
-    constant_pool: Vec<u8>,
+    pub instructions: Vec<Instruction>,
+    pub data_section: Vec<u8>,
+    pub constant_pool: Vec<u8>,
 }
 
 impl Parser {
