@@ -11,6 +11,7 @@ pub struct Lexer {
     curr_loc: Loc,
 }
 
+#[allow(dead_code)]
 impl Lexer {
     pub fn new(source: String) -> Self {
         let mut l = Self {
@@ -202,6 +203,9 @@ impl Lexer {
                     str.chars().last().unwrap().to_digit(10).unwrap() as u8
                 }),
             )),
+            "b" => self.add_token(Token::new(self.start_loc, TokenValue::B)),
+            "cbz" => self.add_token(Token::new(self.start_loc, TokenValue::CBZ)),
+            "cbnz" => self.add_token(Token::new(self.start_loc, TokenValue::CBNZ)),
             "rzr" => self.add_token(Token::new(self.start_loc, TokenValue::Register(7))),
             "r0" | "r1" | "r2" | "r3" | "r4" | "r5" | "r6" | "r7" => self.add_token(Token::new(
                 self.start_loc,

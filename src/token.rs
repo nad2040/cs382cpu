@@ -51,6 +51,10 @@ pub enum TokenValue {
     Ld(u8, bool), // num bytes, sign-extension
     St(u8),       // num bytes
 
+    B,
+    CBZ,
+    CBNZ,
+
     Halt,
 
     Register(u8),

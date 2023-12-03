@@ -325,43 +325,36 @@ fn encode_instructions(instructions: &Vec<Instruction>) -> Vec<u8> {
                     _ => (),
                 }
             }
+            Instruction::B(addr) => {
+                opcode |= 0b1110000;
+                match addr {
+                    RegImmAddr::Address(addr) => {
+                        imm |= *addr as u16 as u32;
+                    }
+                    _ => (),
+                }
+            }
+            Instruction::CBZ(addr) => {
+                opcode |= 0b1110100;
+                match addr {
+                    RegImmAddr::Address(addr) => {
+                        imm |= *addr as u16 as u32;
+                    }
+                    _ => (),
+                }
+            }
+            Instruction::CBNZ(addr) => {
+                opcode |= 0b1111000;
+                match addr {
+                    RegImmAddr::Address(addr) => {
+                        imm |= *addr as u16 as u32;
+                    }
+                    _ => (),
+                }
+            }
         }
         let instruction = (opcode << 25) | (imm << 9) | (rm << 6) | (rn << 3) | rd;
         encoded_instructions.append(&mut instruction.to_le_bytes().to_vec());
     }
     encoded_instructions
 }
-
-// pub fn text_to_mem(text: &Vec<Instruction>) -> String {
-//     let mut output_str: String = "v3.0 hex words addressed".to_string();
-//     let mut mem_indexer: i32 = 0;
-//     // let full_data_size = TEXT_MEM_SIZE * TEXT_MEM_SIZE;
-//
-//     for i in 0..full_data_size {
-//         if mem_indexer % 16 == 0 {
-//             output_str += format!("{:x}", mem_indexer).as_str();
-//         }
-//
-//         let mut has_val: u8 = 0;
-//
-//         if i <= text.len() as i32 {
-//             has_val += 1;
-//         }
-//
-//         if has_val == 1 {
-//             // Get the translation into 1 byte in hex for that
-//         } else {
-//             output_str += "00000000"
-//         }
-//
-//         if mem_indexer % 15 == 0 && mem_indexer != full_data_size {
-//             output_str += "\n";
-//         } else {
-//             output_str += " ";
-//         }
-//
-//         mem_indexer += 1;
-//     }
-//
-//     return output_str;
-// }

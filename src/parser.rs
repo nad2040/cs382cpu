@@ -31,6 +31,10 @@ pub enum Instruction {
     Ld(u8, RegImmAddr),                  // rd, (rn | addr)
     LdMem(u8, bool, u8, u8, RegImmAddr), // num bytes, sign extension, rd, rn, (rm | addr)
     St(u8, u8, u8, RegImmAddr),          // num bytes, rd, rn, (rm | addr)
+
+    B(RegImmAddr),
+    CBZ(RegImmAddr),
+    CBNZ(RegImmAddr),
 }
 
 #[derive(Debug)]
@@ -166,13 +170,68 @@ impl Parser {
                     self.parse_ld_instruction(num_bytes, sign_extension);
                 }
                 TokenValue::St(num_bytes) => self.parse_st_instruction(num_bytes),
-                TokenValue::Halt => {
-                    self.instructions.push(Instruction::Halt);
-                    self.text_section_offset += 4;
-                    self.increment_position(1);
+                TokenValue::Halt => self.parse_halt_instruction(),
+                TokenValue::B | TokenValue::CBZ | TokenValue::CBNZ => {
+                    self.parse_branch_instruction(t.value)
                 }
                 _ => self.errtok(format!("Unexpected token {:?}", t.value), t),
             }
+        }
+    }
+
+    fn parse_halt_instruction(&mut self) {
+        self.instructions.push(Instruction::Halt);
+        self.text_section_offset += 4;
+        self.increment_position(1);
+        self.skip_whitespace();
+        match self.peek().value {
+            TokenValue::Newline => self.increment_position(1),
+            _ => self.errtok(
+                format!("Unexpected token {:?}", self.peek().value),
+                self.peek(),
+            ),
+        }
+    }
+
+    fn parse_branch_instruction(&mut self, branch_instruction_token: TokenValue) {
+        self.increment_position(1);
+        self.skip_whitespace();
+        match (self.peek().value, branch_instruction_token) {
+            (TokenValue::Label(label), TokenValue::B) => {
+                self.instructions.push(Instruction::B(
+                    RegImmAddr::Unresolved(label, self.text_section_offset), // current PC. calculate
+                                                                             // relative offset later
+                ));
+            }
+            (TokenValue::Label(label), TokenValue::CBZ) => {
+                self.instructions.push(Instruction::CBZ(
+                    RegImmAddr::Unresolved(label, self.text_section_offset), // current PC. calculate
+                                                                             // relative offset later
+                ));
+            }
+            (TokenValue::Label(label), TokenValue::CBNZ) => {
+                self.instructions.push(Instruction::B(
+                    RegImmAddr::Unresolved(label, self.text_section_offset), // current PC. calculate
+                                                                             // relative offset later
+                ));
+            }
+            (_, _) => self.errtok(
+                format!(
+                    "Expected label token for branch instruction but found {:?}",
+                    self.peek().value
+                ),
+                self.peek(),
+            ),
+        }
+        self.text_section_offset += 4;
+        self.increment_position(1);
+        self.skip_whitespace();
+        match self.peek().value {
+            TokenValue::Newline => self.increment_position(1),
+            _ => self.errtok(
+                format!("Unexpected token {:?}", self.peek().value),
+                self.peek(),
+            ),
         }
     }
 
@@ -614,6 +673,36 @@ impl Parser {
                                 *dst,
                                 RegImmAddr::Address((*addr as isize - *pc as isize) as i16),
                             )
+                        }
+                        None => self.errmsg(format!("Label \"{}\" is undefined", label)),
+                    }
+                }
+                Instruction::B(RegImmAddr::Unresolved(label, pc)) => {
+                    match self.mapping.get(label) {
+                        Some(addr) => {
+                            self.instructions[i] = Instruction::B(RegImmAddr::Address(
+                                (*addr as isize - *pc as isize) as i16,
+                            ))
+                        }
+                        None => self.errmsg(format!("Label \"{}\" is undefined", label)),
+                    }
+                }
+                Instruction::CBZ(RegImmAddr::Unresolved(label, pc)) => {
+                    match self.mapping.get(label) {
+                        Some(addr) => {
+                            self.instructions[i] = Instruction::CBZ(RegImmAddr::Address(
+                                (*addr as isize - *pc as isize) as i16,
+                            ))
+                        }
+                        None => self.errmsg(format!("Label \"{}\" is undefined", label)),
+                    }
+                }
+                Instruction::CBNZ(RegImmAddr::Unresolved(label, pc)) => {
+                    match self.mapping.get(label) {
+                        Some(addr) => {
+                            self.instructions[i] = Instruction::CBNZ(RegImmAddr::Address(
+                                (*addr as isize - *pc as isize) as i16,
+                            ))
                         }
                         None => self.errmsg(format!("Label \"{}\" is undefined", label)),
                     }

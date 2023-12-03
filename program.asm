@@ -18,6 +18,9 @@ lablewfij__2:
     ADD R0, R1, '\0'
     SUB R0, R1, RZR
     SUB R0, R1, 129
+    B label1
+    CBZ label1
+    CBNZ lablewfij__2
     MUL R0, R1, R2
     MUL R6, R2, 0b10001011
     DIV R3, R0, R1
