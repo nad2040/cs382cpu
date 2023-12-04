@@ -265,12 +265,12 @@ fn encode_instructions(instructions: &Vec<Instruction>) -> Vec<u8> {
                 opcode |= 0b1101000;
                 rd |= *dst as u32;
                 match src {
+                    RegImmAddr::Register(src) => {
+                        rn |= *src as u32;
+                    }
                     RegImmAddr::Imm(num) => {
                         opcode |= 0b0000010;
                         imm |= *num as u16 as u32;
-                    }
-                    RegImmAddr::Register(src) => {
-                        rn |= *src as u32;
                     }
                     RegImmAddr::Address(addr) => {
                         opcode |= 0b0000010;

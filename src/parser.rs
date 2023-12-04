@@ -730,7 +730,7 @@ impl Parser {
                     // leave space for it when it gets resolved.
                     match self.mapping.get(label) {
                         Some(addr) => {
-                            let offset = *const_pool;
+                            let offset = *const_pool - CONSTANT_POOL_OFFSET;
                             self.constant_pool.splice(
                                 (offset)..(offset + 8),
                                 (*addr as u64).to_le_bytes().to_vec(),
