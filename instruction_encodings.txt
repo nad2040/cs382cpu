@@ -56,14 +56,14 @@ TNNNNAW
 1100100: NEG reg, reg
 1100110: NEG reg, imm
 1101000: LD reg, reg (acts as MOV)
-1101010: LD reg, imm64|label (acts as MOV/ADR. imm is stored in the constant pool. the address of the constant or label is then converted to pc-relative-offset)
+1101010: LD reg, imm64|label (acts as MOV/ADR. the address of label, or large immediate gets stored in the constant pool. then the address of the constant pool gets converted to a pc-relative-offset)
 1101101: SWAP reg, reg
 1101110: UNDEFINED
 1110000: B label (pc-relative imm)
 1110010: UNDEFINED
-1110100: CBZ label (pc-relative imm)
+1110100: CBZ reg, label (pc-relative imm)
 1110110: UNDEFINED
-1111000: CBNZ label (pc-relative imm)
+1111000: CBNZ reg, label (pc-relative imm)
 1111010: UNDEFINED
 1111100: UNDEFINED
 1111110: UNDEFINED

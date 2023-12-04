@@ -2,6 +2,7 @@
 .text
 
 label1:  /* comment */
+    LD r5, data2
     LDS r0, data1
     LD R3, 0xffffffffffffffff
     LD2S r0, [r5, 0x12]
@@ -19,8 +20,8 @@ lablewfij__2:
     SUB R0, R1, RZR
     SUB R0, R1, 129
     B label1
-    CBZ label1
-    CBNZ lablewfij__2
+    CBZ R1, label1
+    CBNZ RZR, lablewfij__2
     MUL R0, R1, R2
     MUL R6, R2, 0b10001011
     DIV R3, R0, R1

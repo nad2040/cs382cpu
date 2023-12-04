@@ -2,12 +2,17 @@ use crate::token::{DataTypeDirective, SectionDirective, Token, TokenValue};
 use log::{debug, error};
 use std::collections::HashMap;
 
+pub const CONSTANT_POOL_OFFSET: usize = 0x0000;
+pub const DATA_OFFSET: usize = 0x1000;
+pub const TEXT_OFFSET: usize = 0x4000;
+pub const FILE_LIMIT: usize = 0x8000;
+
 #[derive(Debug)]
 pub enum RegImmAddr {
     Register(u8),
     Imm(i16),
-    Address(i16),              // PC-relative offset
-    Unresolved(String, usize), // label name, current PC.
+    Address(i16),                     // PC-relative offset
+    Unresolved(String, usize, usize), // label name, current PC, current constant_pool_offset
 }
 
 #[derive(Debug)]
@@ -33,8 +38,8 @@ pub enum Instruction {
     St(u8, u8, u8, RegImmAddr),          // num bytes, rd, rn, (rm | addr)
 
     B(RegImmAddr),
-    CBZ(RegImmAddr),
-    CBNZ(RegImmAddr),
+    CBZ(u8, RegImmAddr),
+    CBNZ(u8, RegImmAddr),
 }
 
 #[derive(Debug)]
@@ -59,15 +64,16 @@ pub struct Parser {
     pub constant_pool: Vec<u8>,
 }
 
+#[allow(dead_code)]
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
         let mut p = Self {
             tokens,
             token_idx: 0,
             mapping: HashMap::new(),
-            constant_pool_offset: 0x0000,
-            data_section_offset: 0x1000,
-            text_section_offset: 0x4000,
+            constant_pool_offset: CONSTANT_POOL_OFFSET,
+            data_section_offset: DATA_OFFSET,
+            text_section_offset: TEXT_OFFSET,
             instructions: Vec::new(),
             data_section: Vec::new(),
             constant_pool: Vec::new(),
@@ -133,13 +139,13 @@ impl Parser {
                 _ => self.increment_position(1),
             }
         }
-        debug!("{:?}", self.mapping);
-        debug!("{:?}", self.data_section);
-        debug!("{:?}", self.instructions);
-        // debug!("{:?}", self.tex)
         // now do second pass and resolve all unresolved labels.
         // if some label token is not in the hashmap already, we have an undefined label!
         self.resolve_labels();
+        debug!("{:?}", self.mapping);
+        debug!("{:?}", self.constant_pool);
+        debug!("{:?}", self.data_section);
+        debug!("{:?}", self.instructions);
     }
 
     fn parse_text_section(&mut self) {
@@ -171,9 +177,8 @@ impl Parser {
                 }
                 TokenValue::St(num_bytes) => self.parse_st_instruction(num_bytes),
                 TokenValue::Halt => self.parse_halt_instruction(),
-                TokenValue::B | TokenValue::CBZ | TokenValue::CBNZ => {
-                    self.parse_branch_instruction(t.value)
-                }
+                TokenValue::B => self.parse_branch_instruction(),
+                TokenValue::CBZ | TokenValue::CBNZ => self.parse_cbz_cbnz_instruction(t.value),
                 _ => self.errtok(format!("Unexpected token {:?}", t.value), t),
             }
         }
@@ -193,26 +198,72 @@ impl Parser {
         }
     }
 
-    fn parse_branch_instruction(&mut self, branch_instruction_token: TokenValue) {
+    fn parse_branch_instruction(&mut self) {
         self.increment_position(1);
         self.skip_whitespace();
-        match (self.peek().value, branch_instruction_token) {
-            (TokenValue::Label(label), TokenValue::B) => {
+        match self.peek().value {
+            TokenValue::Label(label) => {
                 self.instructions.push(Instruction::B(
-                    RegImmAddr::Unresolved(label, self.text_section_offset), // current PC. calculate
-                                                                             // relative offset later
+                    RegImmAddr::Unresolved(
+                        label,
+                        self.text_section_offset,
+                        self.constant_pool_offset,
+                    ), // current PC. calculate
+                       // relative offset later
                 ));
             }
+            _ => self.errtok(
+                format!(
+                    "Expected label token for branch instruction but found {:?}",
+                    self.peek().value
+                ),
+                self.peek(),
+            ),
+        }
+        self.text_section_offset += 4;
+        self.increment_position(1);
+        self.skip_whitespace();
+        match self.peek().value {
+            TokenValue::Newline => self.increment_position(1),
+            _ => self.errtok(
+                format!("Unexpected token {:?}", self.peek().value),
+                self.peek(),
+            ),
+        }
+    }
+    fn parse_cbz_cbnz_instruction(&mut self, cb_instruction: TokenValue) {
+        let mut reg: Option<u8> = None;
+        self.increment_position(1);
+        self.skip_whitespace();
+        match self.peek().value {
+            TokenValue::Register(register_num) => reg = Some(register_num),
+            _ => self.errtok("Expected a register to check".to_string(), self.peek()),
+        }
+        self.increment_position(1);
+        self.skip_whitespace();
+        self.expect_comma();
+        self.skip_whitespace();
+        match (self.peek().value, cb_instruction) {
             (TokenValue::Label(label), TokenValue::CBZ) => {
                 self.instructions.push(Instruction::CBZ(
-                    RegImmAddr::Unresolved(label, self.text_section_offset), // current PC. calculate
-                                                                             // relative offset later
+                    reg.unwrap(),
+                    RegImmAddr::Unresolved(
+                        label,
+                        self.text_section_offset,
+                        self.constant_pool_offset,
+                    ), // current PC. calculate
+                       // relative offset later
                 ));
             }
             (TokenValue::Label(label), TokenValue::CBNZ) => {
                 self.instructions.push(Instruction::CBNZ(
-                    RegImmAddr::Unresolved(label, self.text_section_offset), // current PC. calculate
-                                                                             // relative offset later
+                    reg.unwrap(),
+                    RegImmAddr::Unresolved(
+                        label,
+                        self.text_section_offset,
+                        self.constant_pool_offset,
+                    ), // current PC. calculate
+                       // relative offset later
                 ));
             }
             (_, _) => self.errtok(
@@ -403,9 +454,16 @@ impl Parser {
             (TokenValue::Label(label), 8) => {
                 self.instructions.push(Instruction::Ld(
                     dst.unwrap(),
-                    RegImmAddr::Unresolved(label, self.text_section_offset), // current PC. calculate
-                                                                             // relative offset later
+                    RegImmAddr::Unresolved(
+                        label,
+                        self.text_section_offset,
+                        self.constant_pool_offset,
+                    ), // current PC. calculate
+                       // relative offset later
                 ));
+                self.constant_pool
+                    .append(&mut (0 as u64).to_le_bytes().to_vec());
+                self.constant_pool_offset += 8;
                 self.increment_position(1);
             }
             (TokenValue::Imm(imm), 8) => {
@@ -666,18 +724,26 @@ impl Parser {
         // resolve labels. if label not the hashmap, we have an error.
         for i in 0..self.instructions.len() {
             match &self.instructions[i] {
-                Instruction::Ld(dst, RegImmAddr::Unresolved(label, pc)) => {
+                Instruction::Ld(dst, RegImmAddr::Unresolved(label, pc, const_pool)) => {
+                    // since for LD reg, label we need the physical label to be loaded from memory,
+                    // I need to keep track of where the label should live when parsing it and
+                    // leave space for it when it gets resolved.
                     match self.mapping.get(label) {
                         Some(addr) => {
+                            let offset = *const_pool;
+                            self.constant_pool.splice(
+                                (offset)..(offset + 8),
+                                (*addr as u64).to_le_bytes().to_vec(),
+                            );
                             self.instructions[i] = Instruction::Ld(
                                 *dst,
-                                RegImmAddr::Address((*addr as isize - *pc as isize) as i16),
+                                RegImmAddr::Address((offset as isize - *pc as isize) as i16),
                             )
                         }
                         None => self.errmsg(format!("Label \"{}\" is undefined", label)),
                     }
                 }
-                Instruction::B(RegImmAddr::Unresolved(label, pc)) => {
+                Instruction::B(RegImmAddr::Unresolved(label, pc, _)) => {
                     match self.mapping.get(label) {
                         Some(addr) => {
                             self.instructions[i] = Instruction::B(RegImmAddr::Address(
@@ -687,22 +753,24 @@ impl Parser {
                         None => self.errmsg(format!("Label \"{}\" is undefined", label)),
                     }
                 }
-                Instruction::CBZ(RegImmAddr::Unresolved(label, pc)) => {
+                Instruction::CBZ(reg, RegImmAddr::Unresolved(label, pc, _)) => {
                     match self.mapping.get(label) {
                         Some(addr) => {
-                            self.instructions[i] = Instruction::CBZ(RegImmAddr::Address(
-                                (*addr as isize - *pc as isize) as i16,
-                            ))
+                            self.instructions[i] = Instruction::CBZ(
+                                *reg,
+                                RegImmAddr::Address((*addr as isize - *pc as isize) as i16),
+                            )
                         }
                         None => self.errmsg(format!("Label \"{}\" is undefined", label)),
                     }
                 }
-                Instruction::CBNZ(RegImmAddr::Unresolved(label, pc)) => {
+                Instruction::CBNZ(reg, RegImmAddr::Unresolved(label, pc, _)) => {
                     match self.mapping.get(label) {
                         Some(addr) => {
-                            self.instructions[i] = Instruction::CBNZ(RegImmAddr::Address(
-                                (*addr as isize - *pc as isize) as i16,
-                            ))
+                            self.instructions[i] = Instruction::CBNZ(
+                                *reg,
+                                RegImmAddr::Address((*addr as isize - *pc as isize) as i16),
+                            )
                         }
                         None => self.errmsg(format!("Label \"{}\" is undefined", label)),
                     }

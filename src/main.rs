@@ -12,7 +12,7 @@ use log::error;
 fn main() {
     env_logger::init();
     let args: Vec<String> = std::env::args().collect();
-    println!("{:?}", args);
+    // println!("{:?}", args);
     if args.len() < 2 {
         error!("Missing source file!\nUsage: ./target/release/cs382cpu <filename>");
         std::process::exit(1);

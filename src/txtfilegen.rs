@@ -1,10 +1,7 @@
-use crate::parser::{Instruction, RegImmAddr};
+use crate::parser::{
+    Instruction, RegImmAddr, CONSTANT_POOL_OFFSET, DATA_OFFSET, FILE_LIMIT, TEXT_OFFSET,
+};
 use log::error;
-
-const CONSTANT_POOL_OFFSET: usize = 0x0000;
-const DATA_OFFSET: usize = 0x1000;
-const TEXT_OFFSET: usize = 0x4000;
-const FILE_LIMIT: usize = 0x8000;
 
 pub fn generate_files(
     program: String,
@@ -15,7 +12,9 @@ pub fn generate_files(
     let header: String = "v3.0 hex words addressed\n".to_string();
     let mut data_file: String = header.clone();
 
-    println!("{:?}\n{:?}\n{:?}", constant_pool, data, instructions);
+    // debug!("{:?}", constant_pool);
+    // debug!("{:?}", data);
+    // debug!("{:?}", instructions);
 
     for i in CONSTANT_POOL_OFFSET..DATA_OFFSET {
         // line header
@@ -334,8 +333,9 @@ fn encode_instructions(instructions: &Vec<Instruction>) -> Vec<u8> {
                     _ => (),
                 }
             }
-            Instruction::CBZ(addr) => {
+            Instruction::CBZ(reg, addr) => {
                 opcode |= 0b1110100;
+                rn |= *reg as u32;
                 match addr {
                     RegImmAddr::Address(addr) => {
                         imm |= *addr as u16 as u32;
@@ -343,8 +343,9 @@ fn encode_instructions(instructions: &Vec<Instruction>) -> Vec<u8> {
                     _ => (),
                 }
             }
-            Instruction::CBNZ(addr) => {
+            Instruction::CBNZ(reg, addr) => {
                 opcode |= 0b1111000;
+                rn |= *reg as u32;
                 match addr {
                     RegImmAddr::Address(addr) => {
                         imm |= *addr as u16 as u32;
