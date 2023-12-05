@@ -1,27 +1,14 @@
 
 .text
-
-label1:  /* comment */
-    LD r5, data2
-    LDS r0, data1
-    LD R3, 0xffffffffffffffff
-    LD2S r0, [r5, 0x12]
-    LD4S r0, [r5, 0x12]
-    LDS r0, [r5, 0x12]
-    LD r0, [r5, 0x12]
-    LD1 r0, [r5, 0x12]
-    LD2 r0, [r5, 0x12]
-    LD4 r0, [r5, 0x12]
-
-
-lablewfij__2:
+    LD R0, 0xffffffffffffffff
+    LD R1, 10
     ADD R0, R1, R2  // line comment
     ADD R0, R1, '\0'
     SUB R0, R1, RZR
     SUB R0, R1, 129
-    B label1
-    CBZ R1, label1
-    CBNZ RZR, lablewfij__2
+    B label2
+    CBZ R1,
+    CBNZ RZR,
     MUL R0, R1, R2
     MUL R6, R2, 0b10001011
     DIV R3, R0, R1
