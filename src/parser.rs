@@ -3,9 +3,9 @@ use log::{debug, error};
 use std::collections::HashMap;
 
 pub const CONSTANT_POOL_OFFSET: usize = 0x0000;
-pub const DATA_OFFSET: usize = 0x1000;
-pub const TEXT_OFFSET: usize = 0x4000;
-pub const FILE_LIMIT: usize = 0x8000;
+pub const DATA_OFFSET: usize = 0x40;
+pub const TEXT_OFFSET: usize = 0x80;
+pub const FILE_LIMIT: usize = 0x100;
 
 #[derive(Debug)]
 pub enum RegImmAddr {

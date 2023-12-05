@@ -1,26 +1,24 @@
 
 .text
-    LD R0, 0xffffffffffffffff
-    LD R1, 10
-    ADD R0, R1, R2  // line comment
-    ADD R0, R1, '\0'
-    SUB R0, R1, RZR
-    SUB R0, R1, 129
-    B label2
-    CBZ R1,
-    CBNZ RZR,
-    MUL R0, R1, R2
-    MUL R6, R2, 0b10001011
-    DIV R3, R0, R1
-    DIV R3, R0, 0xff
+    LD R0, label
+    LD R2, label2
+    LD R3, 0
+
+loop:
+    LD1 R1, [R0, R3]
+    CBZ R1, end
+
+    SUB R1, R1, 1
+    ST1 R1, [R2, R3]
+    ADD R3, R3, 1
+
+    CBNZ R1, loop
+
+end:
     HALT
 
 .data
 
-data1:
-.char '0', ' ', '~' ,'"'
-.1b 0x0, 0xff
-.2b 3429
-.4b 2147483647
-.8b 9223000000000000000
-data2: .string "123456", "0123456789987"
+    label: .string "hello"
+    label2: .char '\0', '\0','\0','\0','\0','\0'
+
