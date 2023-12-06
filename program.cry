@@ -20,5 +20,5 @@ end:
 .data
 
     label: .string "hello"
-    label2: .char '\0', '\0','\0','\0','\0','\0'
+    label2: .char '\0','\0','\0','\0','\0','\0'
 

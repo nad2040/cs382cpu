@@ -139,6 +139,7 @@ impl Parser {
                 _ => self.increment_position(1),
             }
         }
+        debug!("{:?}", self.instructions);
         // now do second pass and resolve all unresolved labels.
         // if some label token is not in the hashmap already, we have an undefined label!
         self.resolve_labels();
@@ -532,6 +533,15 @@ impl Parser {
                     .push(Instruction::St(num_bytes, src.unwrap(), addr_reg, offset))
             }
             _ => self.errtok("Invalid ST instruction syntax".to_string(), self.peek()),
+        }
+        self.text_section_offset += 4;
+        self.skip_whitespace();
+        match self.peek().value {
+            TokenValue::Newline => self.increment_position(1),
+            _ => self.errtok(
+                format!("Unexpected token {:?}", self.peek().value),
+                self.peek(),
+            ),
         }
     }
 
