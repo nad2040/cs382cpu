@@ -1,7 +1,8 @@
 
 .text
-    LD R0, label
-    LD R2, label2
+    LD R2, label
+    LD R0, label2
+    SWAP R0, R2
     LD R3, 0
 
 loop:
